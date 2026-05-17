@@ -48,17 +48,26 @@ BLT x1, x2, 12
 ADDI x28, x0, 88     # GHOST 1 (Fetched, but will be flushed!)
 ADDI x29, x0, 99     # GHOST 2 (Fetched, but will be flushed!)
 ADDI x5, x0, 5       # x5 becomes 5.
-BNE x3, x5, 12       # Jump back 4 bytes to Loop Head if x3 != 0
-ADDI x28, x0, 88     # GHOST 1 (Fetched, but will be flushed!)
-ADDI x29, x0, 99     # GHOST 2 (Fetched, but will be flushed!)
-ADDI x5, x0, 3       # x5 becomes 5.
-BEQ x3, x5, -4       # Jump back 4 bytes to Loop Head if x3 != 0
-JAL x30, 32 # JAL x0, -12 #Originally using x0, now storing original next pc in x30 to verify correct JAL behavior
-ADDI x29, x0, 11 # Verify that x29 is not overwritten by JALR instruction
+BNE x3, x5, 12       # 3 != 5 is TRUE. Jumps forward 12 bytes.
+ADDI x28, x0, 88     # GHOST 1 (Flushed!)
+ADDI x29, x0, 99     # GHOST 2 (Flushed!)
+ADDI x6, x0, -1      # x6 becomes 0xFFFFFFFF (-1 signed, MAX unsigned)
+ADDI x7, x0, 1       # x7 becomes 1
+BGE x6, x7, 12       # -1 >= 1 (FALSE, Signed). Falls through!
+ADDI x8, x0, 8       # Executes normally.
+BLTU x6, x7, 12      # MAX < 1 (FALSE, Unsigned). Falls through!
+ADDI x9, x0, 9       # Executes normally.
+BGEU x6, x7, 12      # MAX >= 1 (TRUE, Unsigned). Jumps forward 12 bytes!
+ADDI x28, x0, 88     # GHOST 1 (Flushed!)
+ADDI x29, x0, 99     # GHOST 2 (Flushed!)
+ADDI x5, x0, 3       # x5 becomes 3.
+BEQ x3, x5, -4       # 3 == 3 is TRUE. Jumps back 4 bytes to ADDI x5, x0, 3 (Infinite Loop!)
+JAL x30, 32 
+ADDI x29, x0, 11 
 ADDI x1, x0, 0
 ADDI x2, x0, 0
 ADDI x3, x0, 0
 ADDI x1, x0, 1
 ADDI x2, x0, 2
 ADDI x3, x0, 3
-JALR x30, 179(x1)  # JAL x0, -12 #Originally using x0, now storing original next pc in x30 to verify correct JAL behavior
+JALR x30, 179(x1)
