@@ -14,7 +14,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class PipelinedRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
 
 "RV32I_BasicTester" should "work" in {
-    test(new PipelinedRV32I("src/test/programs/jalr_BinaryFile_pipelined")).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
+    test(new PipelinedRV32I("src/test/programs/branch_BinaryFile_pipelined")).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
 
       dut.clock.setTimeout(0)
       dut.clock.step(5)
@@ -146,48 +146,44 @@ class PipelinedRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.result.expect(5.U)           // ADD x24, x0, x21
       dut.clock.step(1)
   
-      // Setting up Registers for JAL Test
-      dut.io.result.expect(0.U)           // ADDI x1, x0, 0
+      // Setting up Registers for Branch Test
+      dut.io.result.expect(1.U)           // ADDI x1, x0, 1
       dut.clock.step(1)
 
-      dut.io.result.expect(0.U)           // ADDI x2, x0, 0
+      dut.io.result.expect(2.U)           // ADDI x2, x0, 2
       dut.clock.step(1)
 
-      dut.io.result.expect(0.U)           // ADDI x3, x0, 0
+      dut.io.result.expect(3.U)           // ADDI x3, x0, 3
       dut.clock.step(1)
 
-      dut.io.result.expect(1.U)           // ADDI x1, x1, 4
+      // BEQ : Not Taken
+      dut.clock.step(1) 
+
+      dut.io.result.expect(4.U)           // ADDI x4, x0, 4
       dut.clock.step(1)
 
-      dut.io.result.expect(2.U)           // ADDI x2, x2, 2
+      // BLT : Taken
+      dut.clock.step(3) 
+
+      dut.io.result.expect(5.U)           // ADDI x5, x0, 5
       dut.clock.step(1)
+
+      // BNE : Taken
+      dut.clock.step(3)
+
+      dut.io.result.expect(3.U)           // ADDI x5, x0, 3
+      dut.clock.step(1)
+
+      // BEQ : Taken (1 instr back)
+      dut.clock.step(3)
 
       dut.io.result.expect(3.U)           // ADDI x3, x3, 3
       dut.clock.step(1)
 
-      // JALR Test: Jump backwards by 3 instructions (-12 bytes + x1 = -8)
-      dut.clock.step(1) 
-      dut.clock.step(1)
+      // REPEATED ONCE AGAIN to CHECK - BEQ : Taken (1 instr back)
+      dut.clock.step(3)
 
-      dut.clock.step(1) 
-      dut.clock.step(1)
-
-      dut.io.result.expect(4.U)           // ADDI x2, x2, 2
-      dut.clock.step(1)
-
-      dut.io.result.expect(6.U)           // ADDI x3, x3, 3
-      dut.clock.step(1)
-
-      dut.clock.step(1)
-      dut.clock.step(1)
-
-      dut.clock.step(1)
-      dut.clock.step(1)
-
-      dut.io.result.expect(6.U)           // ADDI x2, x2, 2
-      dut.clock.step(1)
-
-      dut.io.result.expect(9.U)           // ADDI x3, x3, 3
+      dut.io.result.expect(3.U)           // ADDI x3, x3, 3
       dut.clock.step(1)
 
     }

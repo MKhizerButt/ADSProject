@@ -59,9 +59,7 @@ class ALU extends Module {
     is(PASSB) {
       io.aluResult := io.operandB 
     }
-    is(JAL) {
-      io.aluResult := io.operandA + io.operandB // operandA is the PC, return PC+4 for JAL
-    }
+
   }
 }
 

@@ -73,6 +73,7 @@ class ID extends Module {
   val rs2 = io.inst(24, 20) // Extract rs2 from instruction
   val immI = io.inst(31, 20).asSInt.pad(32).asUInt // Extract immediate for I-type instructions
   val immJ = Cat(io.inst(31), io.inst(19, 12), io.inst(20), io.inst(30, 21), 0.U(1.W)).asSInt.pad(32).asUInt // Extract immediate for JAL instruction, Bit 0 as it is a multiples of 2 bytes
+  val immB = Cat(io.inst(31), io.inst(7), io.inst(30, 25), io.inst(11, 8), 0.U(1.W)).asSInt.pad(32).asUInt // Extract immediate for B-type instructions, Bit 0 as it is a multiples of 2 bytes
   
   io.uop := NOP.asUInt // Default to NOP
   io.rd_idx := rd // Output destination register index
@@ -80,13 +81,14 @@ class ID extends Module {
 
   io.regFileReq_A.addr := rs1 // Set read address for rs1
   io.regFileReq_B.addr := rs2 // Set read address for rs2
-  io.operandA := Mux((opcode === "b1101111".U || opcode === "b1100111".U), io.pc, io.regFileResp_A.data) // Output operandA from regFile response
+  io.operandA := Mux((opcode === "b1101111".U || opcode === "b1100111".U), io.pc, io.regFileResp_A.data) // Output operandA from regFile response for R-type and B-type instructions, use PC for JAL and JALR instructions to calculate target PC
   io.operandB := Mux((opcode === "b1101111".U || opcode === "b1100111".U), 4.U(32.W), 
-                 Mux(opcode === "b0010011".U, immI, io.regFileResp_B.data)) // Output operandB: immediate for I-type, regFile response for R-type, 4.U for J-type to calculate return address
+                 Mux(opcode === "b0010011".U, immI, io.regFileResp_B.data)) // Output operandB: immediate for I-type, regFile response for R-type and B-type, 4.U for J-type to calculate return address
 
   io.pcSel := false.B // Default to not taking branch/jump, will be set in EX stage if needed
   io.targetPC := Mux(opcode === "b1101111".U, io.pc + immJ, // Calculate target PC for JAL instruction, will be used in IF stage for PC update
-                 Mux(opcode === "b1100111".U, ((io.regFileResp_A.data + immI).asUInt & "hfffffffe".U(32.W)), 0.U(32.W))) // Calculate target PC for JALR instruction, will be used in IF stage for PC update
+                 Mux(opcode === "b1100111".U, ((io.regFileResp_A.data + immI).asUInt & "hfffffffe".U(32.W)), 
+                 Mux(opcode === "b1100011".U, (io.pc + immB), 0.U(32.W)))) // Calculate target PC for JALR and B-type instructions, will be used in IF stage for PC update
 
   when(opcode === "b0110011".U) { // R-type instructions
     switch(funct3) {

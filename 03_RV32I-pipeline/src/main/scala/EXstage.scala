@@ -47,9 +47,11 @@ class EX extends Module {
     val operandB = Input(UInt(32.W))
     val xcptInvalid = Input(Bool())
   
-    val outRD = Output(UInt(5.W))        // ADD THIS
+    val outRD = Output(UInt(5.W))
     val aluResult = Output(UInt(32.W))
     val exception = Output(Bool())
+
+    val isBranch = Output(Bool()) // Output signal to indicate if the instruction is a branch/jump, will be used in EX stage for branch decision and in IF stage for PC update
   })
 
 val alu = Module(new ALU())
@@ -57,9 +59,10 @@ val alu = Module(new ALU())
 alu.io.operandA := io.operandA
 alu.io.operandB := io.operandB
 
-io.outRD := io.rd // PASS rd TO OUTPUT
+io.outRD := io.rd 
 io.aluResult := alu.io.aluResult
-io.exception := io.xcptInvalid
+io.exception := io.xcptInvalid // Pass exception flag from ID stage to output
+io.isBranch := false.B // Default to not a branch/jump, will be set for branch instructions
 
 alu.io.operation := ALUOp.ADD // Default operation to avoid latches
 
@@ -85,7 +88,23 @@ switch(uopc(io.uop(4, 0))) { // Use lower 5 bits of uop for instruction decoding
   is(uopc.SLTI) { alu.io.operation := ALUOp.SLT }
   is(uopc.SLTIU) { alu.io.operation := ALUOp.SLTU }
 
-  is(uopc.JAL) { alu.io.operation := ALUOp.JAL }
+  is(uopc.JAL) { alu.io.operation := ALUOp.ADD } // For JAL, ALU will be used to calculate return address (PC + 4), so we can use ADD operation
+  is(uopc.JALR) { alu.io.operation := ALUOp.ADD } // For JALR, ALU will be used to calculate target address (rs1 + imm), so we can use ADD operation
+
+  is{uopc.BEQ} { when (io.operandA === io.operandB) { io.isBranch := true.B } }
+  is{uopc.BNE} { when (io.operandA =/= io.operandB) { io.isBranch := true.B } }
+  is{uopc.BLT} { 
+    when (io.operandA.asSInt < io.operandB.asSInt) { io.isBranch := true.B } 
+  }
+  is{uopc.BGE} { 
+    when (io.operandA.asSInt >= io.operandB.asSInt) { io.isBranch := true.B } 
+  }
+  is{uopc.BLTU} { 
+    when (io.operandA < io.operandB) { io.isBranch := true.B } 
+  }
+  is{uopc.BGEU} { 
+    when (io.operandA >= io.operandB) { io.isBranch := true.B } 
+  }
 }
 }
 //ToDo: Add your implementation according to the specification above here 
