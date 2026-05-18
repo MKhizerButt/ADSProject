@@ -105,17 +105,17 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   val fwdRespB = WireDefault(regFile.io.resp_2)
 
   // 2. Overwrite ONLY the .data field if the Forwarding Unit detects a hazard
-  fwdRespA.data := Mux((fUnit.io.regSelect_Rs === 1.U), exStage.io.aluResult, 
-                   Mux((fUnit.io.regSelect_Rs === 2.U), exBarrier.io.outAluResult, 
-                   regFile.io.resp_1.data))
+  fwdRespA.data := Mux((fUnit.io.regSelect_Rs === 1.U), exBarrier.io.outAluResult, 
+                   Mux((fUnit.io.regSelect_Rs === 2.U), memBarrier.io.outAluResult, 
+                   idBarrier.io.outOperandA)) // If hazard detected for operandA, forward from EX stage; else if hazard detected for operandA, forward from MEM stage; else take the value from ID barrier (which is the value read from regFile or PC for JAL/JALR)
 
-  fwdRespB.data := Mux((fUnit.io.regSelect_Rt === 1.U), exStage.io.aluResult, 
-                   Mux((fUnit.io.regSelect_Rt === 2.U), exBarrier.io.outAluResult, 
-                   regFile.io.resp_2.data))
+  fwdRespB.data := Mux((fUnit.io.regSelect_Rt === 1.U), exBarrier.io.outAluResult, 
+                   Mux((fUnit.io.regSelect_Rt === 2.U), memBarrier.io.outAluResult, 
+                   idBarrier.io.outOperandB))
 
   // 3. Connect the wires into the ID stage
-  idStage.io.regFileResp_A := fwdRespA
-  idStage.io.regFileResp_B := fwdRespB
+  idStage.io.regFileResp_A := regFile.io.resp_1
+  idStage.io.regFileResp_B := regFile.io.resp_2
 
   // Connect ID stage to ID barrier
   idBarrier.io.inUOP := idStage.io.uop
@@ -130,8 +130,8 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   // Connect ID barrier to EX stage
   exStage.io.uop := idBarrier.io.outUOP
   exStage.io.rd := idBarrier.io.outRD
-  exStage.io.operandA := idBarrier.io.outOperandA
-  exStage.io.operandB := idBarrier.io.outOperandB
+  exStage.io.operandA := fwdRespA.data
+  exStage.io.operandB := fwdRespB.data
   exStage.io.xcptInvalid := idBarrier.io.outXcptInvalid
 
   // Connect EX stage to EX barrier
@@ -157,10 +157,10 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   io.exception := wbBarrier.io.outXcptInvalid
 
   // Connecting the fUnit to relevant signals for hazard detection
-  fUnit.io.exBarRd := idBarrier.io.outRD    // 1. Check the RD of the instruction currently in EX (coming out of ID Barrier)
-  fUnit.io.memBarRd := exBarrier.io.outRD   // 2. Check the RD of the instruction currently in MEM (coming out of EX Barrier)
-  fUnit.io.idBarRegFileReq_A := idStage.io.regFileReq_A.addr
-  fUnit.io.idBarRegFileReq_B := idStage.io.regFileReq_B.addr
+  fUnit.io.exBarRd := exBarrier.io.outRD    // 1. Check the RD of the instruction currently in EX (coming out of ID Barrier)
+  fUnit.io.memBarRd := memBarrier.io.outRD   // 2. Check the RD of the instruction currently in MEM (coming out of EX Barrier)
+  fUnit.io.idBarRegFileReq_A := idBarrier.io.outrs1
+  fUnit.io.idBarRegFileReq_B := idBarrier.io.outrs2
   fUnit.io.wbStageWrEn := wbStage.io.regFileReq.wr_en
 
 }

@@ -80,7 +80,10 @@ class ID extends Module {
   io.XcptInvalid := true.B // Default to invalid instruction, will be cleared for valid instructions
 
   io.regFileReq_A.addr := rs1 // Set read address for rs1
-  io.regFileReq_B.addr := rs2 // Set read address for rs2
+  
+  val usesImmediate = (opcode === "b0010011".U || opcode === "b1100111".U || opcode === "b1101111".U) // JALR, JAL and I-type instructions use immediate for operandB
+  io.regFileReq_B.addr := Mux(usesImmediate, 0.U, rs2)
+
   io.operandA := Mux((opcode === "b1101111".U || opcode === "b1100111".U), io.pc, io.regFileResp_A.data) // Output operandA from regFile response for R-type and B-type instructions, use PC for JAL and JALR instructions to calculate target PC
   io.operandB := Mux((opcode === "b1101111".U || opcode === "b1100111".U), 4.U(32.W), 
                  Mux(opcode === "b0010011".U, immI, io.regFileResp_B.data)) // Output operandB: immediate for I-type, regFile response for R-type and B-type, 4.U for J-type to calculate return address

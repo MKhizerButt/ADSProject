@@ -26,17 +26,23 @@ class ForwardingUnit extends Module{
   io.regSelect_Rs := 0.U // Default from regFile
   io.regSelect_Rt := 0.U
   
+  // EX Hazard
   when(io.idBarRegFileReq_A === io.exBarRd && io.idBarRegFileReq_A =/= 0.U) {
     io.regSelect_Rs := 1.U
   }
-  .elsewhen(io.idBarRegFileReq_A === io.memBarRd && io.idBarRegFileReq_A =/= 0.U) {
-    io.regSelect_Rs := 2.U
+  // MEM Hazard 
+  .elsewhen(io.idBarRegFileReq_A === io.memBarRd && io.idBarRegFileReq_A =/= 0.U && io.wbStageWrEn) {
+    when(io.exBarRd =/= io.idBarRegFileReq_A) {
+      io.regSelect_Rs := 2.U
+    }
   }
 
   when(io.idBarRegFileReq_B === io.exBarRd && io.idBarRegFileReq_B =/= 0.U) {
     io.regSelect_Rt := 1.U
   }
-  .elsewhen(io.idBarRegFileReq_B === io.memBarRd && io.idBarRegFileReq_B =/= 0.U) {
-    io.regSelect_Rt := 2.U
+  .elsewhen(io.idBarRegFileReq_B === io.memBarRd && io.idBarRegFileReq_B =/= 0.U && io.wbStageWrEn) {
+    when(io.exBarRd =/= io.idBarRegFileReq_B) {
+      io.regSelect_Rt := 2.U
+    }
   }
 }
