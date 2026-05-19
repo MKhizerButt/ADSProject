@@ -83,7 +83,7 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
 
   val fUnit = Module(new ForwardingUnit())
 
-  ifStage.io.target_pc := Mux(exStage.io.isBranch, idBarrier.io.outTargetPC, idStage.io.targetPC) 
+  ifStage.io.target_pc := Mux(exStage.io.isBranch, idBarrier.io.outTargetPC, idStage.io.targetPC) // If branch else JAL/JALR
   ifStage.io.pcSel := (idStage.io.pcSel || exStage.io.isBranch)
 
   // Connect IF stage to IF barrier
@@ -118,8 +118,9 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   idStage.io.regFileResp_B := regFile.io.resp_2
 
   // Connect ID stage to ID barrier
-  idBarrier.io.inUOP := idStage.io.uop
-  idBarrier.io.inRD := idStage.io.rd_idx
+  // FLUSH GHOST 1: If EX stage takes a branch, squash the ID instruction into a NOP! (Needed because of distance of IF Barrier flush signal and EX Stage branch decision
+  idBarrier.io.inUOP := Mux(exStage.io.isBranch, uopc.NOP.asUInt, idStage.io.uop)
+  idBarrier.io.inRD  := Mux(exStage.io.isBranch, 0.U, idStage.io.rd_idx) // Force destination to x0 for safety
   idBarrier.io.inrs1 := idStage.io.regFileReq_A.addr
   idBarrier.io.inrs2 := idStage.io.regFileReq_B.addr
   idBarrier.io.inOperandA := idStage.io.operandA

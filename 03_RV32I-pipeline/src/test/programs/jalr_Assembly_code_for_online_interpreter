@@ -52,5 +52,5 @@ ADDI x2, x0, 0
 ADDI x3, x0, 0
 ADDI x1, x0, 1
 ADDI x2, x0, 2
-ADDI x3, x0, 3
+ADDI x3, x0, 17
 JALR x30, 179(x1)  # JAL x0, -12 #Originally using x0, now storing original next pc in x30 to verify correct JAL behavior

@@ -49,25 +49,27 @@ ADDI x28, x0, 88     # GHOST 1 (Fetched, but will be flushed!)
 ADDI x29, x0, 99     # GHOST 2 (Fetched, but will be flushed!)
 ADDI x5, x0, 5       # x5 becomes 5.
 BNE x3, x5, 12       # 3 != 5 is TRUE. Jumps forward 12 bytes.
-ADDI x28, x0, 88     # GHOST 1 (Flushed!)
-ADDI x29, x0, 99     # GHOST 2 (Flushed!)
+ADDI x28, x0, 90     # GHOST 1 (Flushed!)
+ADDI x29, x0, 100     # GHOST 2 (Flushed!) XXX PROLLY NOT A FLUSH BUT A SKIP
 ADDI x6, x0, -1      # x6 becomes 0xFFFFFFFF (-1 signed, MAX unsigned)
 ADDI x7, x0, 1       # x7 becomes 1
-BGE x6, x7, 12       # -1 >= 1 (FALSE, Signed). Falls through!
-ADDI x8, x0, 8       # Executes normally.
-BLTU x6, x7, 12      # MAX < 1 (FALSE, Unsigned). Falls through!
-ADDI x9, x0, 9       # Executes normally.
-BGEU x6, x7, 12      # MAX >= 1 (TRUE, Unsigned). Jumps forward 12 bytes!
-ADDI x28, x0, 88     # GHOST 1 (Flushed!)
-ADDI x29, x0, 99     # GHOST 2 (Flushed!)
-ADDI x5, x0, 3       # x5 becomes 3.
-BEQ x3, x5, -4       # 3 == 3 is TRUE. Jumps back 4 bytes to ADDI x5, x0, 3 (Infinite Loop!)
-JAL x30, 32 
-ADDI x29, x0, 11 
-ADDI x1, x0, 0
-ADDI x2, x0, 0
-ADDI x3, x0, 0
-ADDI x1, x0, 1
-ADDI x2, x0, 2
-ADDI x3, x0, 3
-JALR x30, 179(x1)
+BNE x3, x5, 8       # 3 != 5 is TRUE. Jumps forward 12 bytes.
+ADDI x28, x0, 110     # GHOST 1 (Flushed!)
+ADDI x29, x0, 120     
+ADDI x6, x0, -2
+ADDI x7, x0, 2
+ADDI x10, x0, 0
+ADDI x11, x0, 0
+ADDI x12, x0, 0
+ADDI x13, x0, 0
+ADDI x14, x0, 0
+ADDI x15, x0, 0
+BGE x7, x10, 24 
+ADDI x16, x0, 0
+ADDI x17, x0, 0
+ADDI x18, x0, 0
+ADDI x19, x0, 0
+ADDI x20, x0, 0
+ADDI x10, x0, 3 # Branches here
+BGEU x7, x0, -28 # Branches back and resets remaining regs x16 through 20
+ADDI x20, x0, 20 #Should not be executed
