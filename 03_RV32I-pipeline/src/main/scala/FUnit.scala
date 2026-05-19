@@ -14,8 +14,8 @@ class ForwardingUnit extends Module{
     val idBarRegFileReq_A = Input(UInt(5.W)) // RegisterRs
     val idBarRegFileReq_B = Input(UInt(5.W)) // RegisterRt
     
-    val wbStageWrEn = Input(Bool())
-    //     val memBarWrEn  = Input(Bool()) // Does not exist currently, write enable is only sent via wb stage to the regFile
+    val exBarWrEn = Input(Bool())   // NEW: Is the instruction in MEM writing?
+    val wbStageWrEn = Input(Bool()) // Is the instruction in WB writing?    //     val memBarWrEn  = Input(Bool()) // Does not exist currently, write enable is only sent via wb stage to the regFile
     // no mem module in task 3, hence there were no load instr (or store), write enable was always "set"
     // Also no branche or jump as of now
 
@@ -27,7 +27,7 @@ class ForwardingUnit extends Module{
   io.regSelect_Rt := 0.U
   
   // EX Hazard
-  when(io.idBarRegFileReq_A === io.exBarRd && io.idBarRegFileReq_A =/= 0.U) {
+  when(io.idBarRegFileReq_A === io.exBarRd && io.idBarRegFileReq_A =/= 0.U && io.exBarWrEn) {
     io.regSelect_Rs := 1.U
   }
   // MEM Hazard 
@@ -37,7 +37,7 @@ class ForwardingUnit extends Module{
     }
   }
 
-  when(io.idBarRegFileReq_B === io.exBarRd && io.idBarRegFileReq_B =/= 0.U) {
+  when(io.idBarRegFileReq_B === io.exBarRd && io.idBarRegFileReq_B =/= 0.U && io.exBarWrEn) {
     io.regSelect_Rt := 1.U
   }
   .elsewhen(io.idBarRegFileReq_B === io.memBarRd && io.idBarRegFileReq_B =/= 0.U && io.wbStageWrEn) {

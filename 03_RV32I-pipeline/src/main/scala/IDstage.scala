@@ -63,6 +63,7 @@ class ID extends Module {
 
     val pcSel = Output(Bool()) // Input for PC selection signal from EX stage (for branch/jump)
     val targetPC = Output(UInt(32.W)) // Output for target PC to IF stage for branch/jump
+    val wr_en = Output(Bool()) //
   })
   
   val opcode = io.inst(6, 0) // Extract opcode from instruction
@@ -76,7 +77,6 @@ class ID extends Module {
   val immB = Cat(io.inst(31), io.inst(7), io.inst(30, 25), io.inst(11, 8), 0.U(1.W)).asSInt.pad(32).asUInt // Extract immediate for B-type instructions, Bit 0 as it is a multiples of 2 bytes
   
   io.uop := NOP.asUInt // Default to NOP
-  io.rd_idx := rd // Output destination register index
   io.XcptInvalid := true.B // Default to invalid instruction, will be cleared for valid instructions
 
   io.regFileReq_A.addr := rs1 // Set read address for rs1
@@ -92,6 +92,13 @@ class ID extends Module {
   io.targetPC := Mux(opcode === "b1101111".U, io.pc + immJ, // Calculate target PC for JAL instruction, will be used in IF stage for PC update
                  Mux(opcode === "b1100111".U, ((io.regFileResp_A.data + immI).asUInt & "hfffffffe".U(32.W)), 
                  Mux(opcode === "b1100011".U, (io.pc + immB), 0.U(32.W)))) // Calculate target PC for JALR and B-type instructions, will be used in IF stage for PC update
+
+  // Branches (B-type) and Stores (S-type) do NOT write to registers!
+  val isBranch = (opcode === "b1100011".U)
+  // val isStore  = (opcode === "b0100011".U) // Not Implemented right now
+  
+  io.wr_en := !(isBranch) // || isStore) 
+  io.rd_idx := rd // Output destination register index
 
   when(opcode === "b0110011".U) { // R-type instructions
     switch(funct3) {

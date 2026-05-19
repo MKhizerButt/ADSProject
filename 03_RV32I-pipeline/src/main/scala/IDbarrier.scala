@@ -48,6 +48,7 @@ class IDBarrier extends Module {
     val inOperandB = Input(UInt(32.W))
     val inXcptInvalid = Input(Bool())
     val inTargetPC = Input(UInt(32.W))
+    val inWrEn = Input(Bool())
 
     val outUOP = Output(UInt(7.W))
     val outRD = Output(UInt(5.W))
@@ -57,6 +58,7 @@ class IDBarrier extends Module {
     val outOperandB = Output(UInt(32.W))
     val outXcptInvalid = Output(Bool())
     val outTargetPC = Output(UInt(32.W))
+    val outWrEn = Output(Bool())
   })
 
   val uopReg = RegInit(0.U(7.W)) // Assuming 0 is NOP
@@ -67,7 +69,8 @@ class IDBarrier extends Module {
   val operandB = RegInit(0.U(32.W))
   val xcptInvalid = RegInit(false.B)
   val targetPC = RegInit(0.U(32.W))
-
+  val wrEnReg = RegInit(false.B) 
+  
 
   uopReg := io.inUOP
   operandA := io.inOperandA
@@ -77,6 +80,8 @@ class IDBarrier extends Module {
   rs2 := io.inrs2
   xcptInvalid := io.inXcptInvalid
   targetPC := io.inTargetPC // Pass target 
+  wrEnReg := io.inWrEn
+
 
   io.outUOP := uopReg
   io.outOperandA := operandA
@@ -86,7 +91,8 @@ class IDBarrier extends Module {
   io.outrs2 := rs2
   io.outXcptInvalid := xcptInvalid
   io.outTargetPC := targetPC
-
+  io.outWrEn := wrEnReg
+  
 //RegNext means: "Create a register, feed this input into it, initialize it to this default value, and connect it to this output"
 //   io.outUOP         := RegNext(io.inUOP, 0.U)
 //   io.outRD          := RegNext(io.inRD, 0.U)

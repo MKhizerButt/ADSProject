@@ -43,6 +43,7 @@ class WB extends Module {
   val io = IO(new Bundle {
     val aluResult = Input(UInt(32.W))
     val rd = Input(UInt(5.W))
+    val inWrEn = Input(Bool())
 
     val regFileReq = Output(new RegFileWriteReq) // Write request to register file
     val check_res = Output(UInt(32.W)) // Output for verification and debugging
@@ -50,7 +51,7 @@ class WB extends Module {
   
   io.regFileReq.addr := io.rd // Set write address to rd
   io.regFileReq.data := io.aluResult // Forward aluResult to register file write port
-  io.regFileReq.wr_en := true.B // Enable write for all R-type and I-type instructions (to be refined with instruction decoding)
+  io.regFileReq.wr_en := io.inWrEn // Enable write for all R-type and I-type instructions, set in the ID Stage (False only in Branches and Store {not implemented yet})
 
   io.check_res := io.aluResult // Output result for verification and debugging
 }

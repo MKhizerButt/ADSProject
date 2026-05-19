@@ -127,7 +127,9 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   idBarrier.io.inOperandB := idStage.io.operandB
   idBarrier.io.inXcptInvalid := idStage.io.XcptInvalid
   idBarrier.io.inTargetPC := idStage.io.targetPC 
-
+  // CRITICAL: If a branch is taken, force wr_en to false so the flushed Ghost instruction doesn't write!
+  idBarrier.io.inWrEn := Mux(exStage.io.isBranch, false.B, idStage.io.wr_en)
+  
   // Connect ID barrier to EX stage
   exStage.io.uop := idBarrier.io.outUOP
   exStage.io.rd := idBarrier.io.outRD
@@ -139,15 +141,18 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   exBarrier.io.inAluResult := exStage.io.aluResult
   exBarrier.io.inRD := exStage.io.outRD
   exBarrier.io.inXcptInvalid := exStage.io.xcptInvalid
+  exBarrier.io.inWrEn := idBarrier.io.outWrEn // Pass write enable from ID barrier to EX barrier (critical for correct forwarding behavior and to prevent hazards from writing instructions)
 
   // Connect EX barrier to MEM Barrier 
   memBarrier.io.inAluResult := exBarrier.io.outAluResult
   memBarrier.io.inRD := exBarrier.io.outRD
   memBarrier.io.inXcptInvalid := exBarrier.io.outXcptInvalid
+  memBarrier.io.inWrEn := exBarrier.io.outWrEn // Pass write enable from EX barrier to MEM barrier (critical for correct forwarding behavior and to prevent hazards from writing instructions)
 
   // Connect MEM barrier to WB Stage
   wbStage.io.aluResult := memBarrier.io.outAluResult
   wbStage.io.rd := memBarrier.io.outRD
+  wbStage.io.inWrEn := memBarrier.io.outWrEn // Pass write enable from MEM barrier to WB stage (critical for correct forwarding behavior and to prevent hazards from writing instructions)
 
   // Connect WB stage & MEM barrier to WB barrier
   wbBarrier.io.inCheckRes := wbStage.io.check_res
@@ -163,5 +168,5 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   fUnit.io.idBarRegFileReq_A := idBarrier.io.outrs1
   fUnit.io.idBarRegFileReq_B := idBarrier.io.outrs2
   fUnit.io.wbStageWrEn := wbStage.io.regFileReq.wr_en
-
+  fUnit.io.exBarWrEn := exBarrier.io.outWrEn // Check if the instruction in EX stage is writing (coming out of EX Barrier)
 }
