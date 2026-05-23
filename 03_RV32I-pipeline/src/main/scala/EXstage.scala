@@ -46,6 +46,10 @@ class EX extends Module {
     val operandA = Input(UInt(32.W))
     val operandB = Input(UInt(32.W))
     val xcptInvalid = Input(Bool())
+
+    val inPC = Input(UInt(32.W)) // Input for current PC from ID stage for observation
+    val inTargetPC = Input(UInt(32.W)) // Input for target PC from ID stage for branch/jump instructions
+
     val inBTBPredictTaken = Input(Bool()) // Input for predicted taken signal from ID stage for observation
     val inBTBPredictTarget = Input(UInt(32.W)) // Input for predicted target address from ID stage for observation
   
@@ -62,13 +66,15 @@ class EX extends Module {
 
 val alu = Module(new ALU())
 
+val isBranchInst = 0.B // Default to not a branch, will be set for branch instructionss
+
 alu.io.operandA := io.operandA
 alu.io.operandB := io.operandB
 
 io.outRD := io.rd 
 io.aluResult := alu.io.aluResult
 io.exception := io.xcptInvalid // Pass exception flag from ID stage to output
-io.isBranch := false.B // Default to not a branch/jump, will be set for branch instructions
+io.isBranch := false.B // Default to not a branch/jump, will be set for branch instructions if condition is met
 
 alu.io.operation := ALUOp.ADD // Default operation to avoid latches
 
@@ -97,20 +103,42 @@ switch(uopc(io.uop(4, 0))) { // Use lower 5 bits of uop for instruction decoding
   is(uopc.JAL) { alu.io.operation := ALUOp.ADD } // For JAL, ALU will be used to calculate return address (PC + 4), so we can use ADD operation
   is(uopc.JALR) { alu.io.operation := ALUOp.ADD } // For JALR, ALU will be used to calculate target address (rs1 + imm), so we can use ADD operation
 
-  is{uopc.BEQ} { when (io.operandA === io.operandB) { io.isBranch := true.B } }
-  is{uopc.BNE} { when (io.operandA =/= io.operandB) { io.isBranch := true.B } }
+  is{uopc.BEQ} { when (io.operandA === io.operandB) { isBranchInst := true.B } }
+  is{uopc.BNE} { when (io.operandA =/= io.operandB) { isBranchInst := true.B } }
   is{uopc.BLT} { 
-    when (io.operandA.asSInt < io.operandB.asSInt) { io.isBranch := true.B } 
+    when (io.operandA.asSInt < io.operandB.asSInt) { isBranchInst := true.B } 
   }
   is{uopc.BGE} { 
-    when (io.operandA.asSInt >= io.operandB.asSInt) { io.isBranch := true.B } 
+    when (io.operandA.asSInt >= io.operandB.asSInt) { isBranchInst := true.B } 
   }
   is{uopc.BLTU} { 
-    when (io.operandA < io.operandB) { io.isBranch := true.B } 
+    when (io.operandA < io.operandB) { isBranchInst := true.B } 
   }
   is{uopc.BGEU} { 
-    when (io.operandA >= io.operandB) { io.isBranch := true.B } 
+    when (io.operandA >= io.operandB) { isBranchInst := true.B } 
   }
 }
+
+  io.isBranch := isBranchInst
+  
+  // BTB Update Logic
+  // Determine if BTB should be updated (for conditional branches)
+  io.btbUpdate := isBranchInst // Update BTB when a conditional branch is taken
+
+  // BTB update PC is the current PC (PC of the branch instruction)
+  io.btbUpdatePC := io.inPC
+
+  // BTB update target is the target PC calculated by the branch/jump instruction
+  io.btbTarget := io.inTargetPC
+
+  // Detect branch misprediction:
+  // A misprediction occurs if:
+  // 1. The predicted taken status doesn't match the actual taken status, OR
+  // 2. The branch was taken but the predicted target doesn't match the actual target
+  val actualTaken = isBranchInst
+  val predictedTaken = io.inBTBPredictTaken
+  val targetMismatch = (io.inTargetPC =/= io.inBTBPredictTarget) && actualTaken
+
+  io.btbMispredicted := (actualTaken =/= predictedTaken) || targetMismatch
 }
 //ToDo: Add your implementation according to the specification above here 

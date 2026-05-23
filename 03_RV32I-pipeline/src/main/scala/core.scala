@@ -89,14 +89,18 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   ifStage.io.target_pc := Mux(exStage.io.isBranch, idBarrier.io.outTargetPC, idStage.io.targetPC) // If branch else JAL/JALR
   ifStage.io.pcSel := (idStage.io.pcSel || exStage.io.isBranch)
 
-  // Connect IF stage to IF barrier
+  // Connect IF stage to IF Barrier
   ifBarrier.io.inInstr := ifStage.io.instr
   ifBarrier.io.inPC := ifStage.io.outPC
   ifBarrier.io.flush := (idStage.io.pcSel || exStage.io.isBranch)
+  ifBarrier.io.inBTBPredictTaken := ifStage.io.outBTBPredictTaken
+  ifBarrier.io.inBTBPredictTarget := ifStage.io.outBTBPredictTarget
 
   // Connect IF barrier to ID stage
   idStage.io.inst := ifBarrier.io.outInstr
   idStage.io.pc := ifBarrier.io.outPC
+  idStage.io.inBTBPredictTaken := ifBarrier.io.outBTBPredictTaken
+  idStage.io.inBTBPredictTarget := ifBarrier.io.outBTBPredictTarget
 
   // Connect regFile to ID stage and WB stage
   regFile.io.req_1 := idStage.io.regFileReq_A
@@ -132,6 +136,9 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   idBarrier.io.inTargetPC := idStage.io.targetPC 
   // CRITICAL: If a branch is taken, force wr_en to false so the flushed Ghost instruction doesn't write!
   idBarrier.io.inWrEn := Mux(exStage.io.isBranch, false.B, idStage.io.wr_en)
+  idBarrier.io.inPC := idStage.io.outPC // Pass current PC from ID stage to ID barrier for observation
+  idBarrier.io.inBTBPredictTaken := idStage.io.outBTBPredictTaken
+  idBarrier.io.inBTBPredictTarget := idStage.io.outBTBPredictTarget
   
   // Connect ID barrier to EX stage
   exStage.io.uop := idBarrier.io.outUOP
@@ -139,6 +146,11 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   exStage.io.operandA := fwdRespA.data
   exStage.io.operandB := fwdRespB.data
   exStage.io.xcptInvalid := idBarrier.io.outXcptInvalid
+
+  exStage.io.inPC := idBarrier.io.outPC // Pass current PC from ID barrier to EX stage for observation
+  exStage.io.inTargetPC := idBarrier.io.outTargetPC // Pass target PC from ID barrier to EX stage for branch/jump instructions
+  exStage.io.inBTBPredictTaken := idBarrier.io.outBTBPredictTaken
+  exStage.io.inBTBPredictTarget := idBarrier.io.outBTBPredictTarget
 
   // Connect EX stage to EX barrier
   exBarrier.io.inAluResult := exStage.io.aluResult
@@ -174,13 +186,17 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   fUnit.io.exBarWrEn := exBarrier.io.outWrEn // Check if the instruction in EX stage is writing (coming out of EX Barrier)
 
   // IF Stage gives the current PC to the BTB to get branch prediction information
-  btb.io.pc := ifStage.io.outPC
+  btb.io.PC := ifStage.io.outPC
 
   // Connect BTB outputs to IF stage for branch prediction
   ifStage.io.btbValid := btb.io.valid
   ifStage.io.btbTarget := btb.io.target
-  ifStage.io.btbPredictTaken := btb.io.predictedBranch
+  ifStage.io.btbPredictTaken := btb.io.predictTaken
 
   // Connect EX stage to BTB to update it with actual branch outcomes
-  
+  btb.io.update := exStage.io.btbUpdate
+  btb.io.updatePC := exStage.io.btbUpdatePC
+  btb.io.updateTarget := exStage.io.btbTarget
+  btb.io.mispredicted := exStage.io.btbMispredicted
+
 }

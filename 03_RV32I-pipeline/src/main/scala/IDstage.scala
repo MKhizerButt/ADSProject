@@ -64,6 +64,7 @@ class ID extends Module {
     val pcSel = Output(Bool()) // Input for PC selection signal from EX stage (for branch/jump)
     val targetPC = Output(UInt(32.W)) // Output for target PC to IF stage for branch/jump
     val wr_en = Output(Bool()) //
+    val outPC = Output(UInt(32.W)) // Output for current PC to IF stage for observation
 
     val inBTBPredictTaken = Input(Bool()) // Input for predicted taken signal from IF stage for observation
     val inBTBPredictTarget = Input(UInt(32.W)) // Input for predicted target address from IF stage for observation
@@ -108,6 +109,7 @@ class ID extends Module {
   
   io.wr_en := !(isBranch) // || isStore) 
   io.rd_idx := rd // Output destination register index
+  io.outPC := io.pc // Output current PC for observation
 
   when(opcode === "b0110011".U) { // R-type instructions
     switch(funct3) {
