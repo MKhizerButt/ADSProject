@@ -46,12 +46,18 @@ class EX extends Module {
     val operandA = Input(UInt(32.W))
     val operandB = Input(UInt(32.W))
     val xcptInvalid = Input(Bool())
+    val inBTBPredictTaken = Input(Bool()) // Input for predicted taken signal from ID stage for observation
+    val inBTBPredictTarget = Input(UInt(32.W)) // Input for predicted target address from ID stage for observation
   
     val outRD = Output(UInt(5.W))
     val aluResult = Output(UInt(32.W))
     val exception = Output(Bool())
-
     val isBranch = Output(Bool()) // Output signal to indicate if the instruction is a branch/jump, will be used in EX stage for branch decision and in IF stage for PC update
+
+    val btbUpdate = Output(Bool()) // Output signal to indicate if the BTB should be updated (for branch instructions)
+    val btbUpdatePC = Output(UInt(32.W)) // Output for the PC of the branch instruction to update the BTB
+    val btbTarget = Output(UInt(32.W)) // Output for the target address to update the BTB
+    val btbMispredicted = Output(Bool()) // Output signal to indicate if there was a branch misprediction (for branch instructions)
   })
 
 val alu = Module(new ALU())

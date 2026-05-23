@@ -49,6 +49,8 @@ class IDBarrier extends Module {
     val inXcptInvalid = Input(Bool())
     val inTargetPC = Input(UInt(32.W))
     val inWrEn = Input(Bool())
+    val inBTBPredictTaken = Input(Bool()) // Input for predicted taken signal from IF stage for observation
+    val inBTBPredictTarget = Input(UInt(32.W)) // Input for predicted target address from IF stage for observation
 
     val outUOP = Output(UInt(7.W))
     val outRD = Output(UInt(5.W))
@@ -59,6 +61,8 @@ class IDBarrier extends Module {
     val outXcptInvalid = Output(Bool())
     val outTargetPC = Output(UInt(32.W))
     val outWrEn = Output(Bool())
+    val outBTBPredictTaken = Output(Bool()) // Output for predicted taken signal to EX stage for observation
+    val outBTBPredictTarget = Output(UInt(32.W)) // Output for predicted target address to EX stage for observation
   })
 
   val uopReg = RegInit(0.U(7.W)) // Assuming 0 is NOP
@@ -70,7 +74,8 @@ class IDBarrier extends Module {
   val xcptInvalid = RegInit(false.B)
   val targetPC = RegInit(0.U(32.W))
   val wrEnReg = RegInit(false.B) 
-  
+  val btbPredictTakenReg = RegInit(false.B) // Register to hold predicted taken signal for observation
+  val btbPredictTargetReg = RegInit(0.U(32.W)) // Register to hold predicted target address for observation
 
   uopReg := io.inUOP
   operandA := io.inOperandA
@@ -81,6 +86,8 @@ class IDBarrier extends Module {
   xcptInvalid := io.inXcptInvalid
   targetPC := io.inTargetPC // Pass target 
   wrEnReg := io.inWrEn
+  btbPredictTakenReg := io.inBTBPredictTaken
+  btbPredictTargetReg := io.inBTBPredictTarget
 
 
   io.outUOP := uopReg
@@ -92,6 +99,8 @@ class IDBarrier extends Module {
   io.outXcptInvalid := xcptInvalid
   io.outTargetPC := targetPC
   io.outWrEn := wrEnReg
+  io.outBTBPredictTaken := btbPredictTakenReg
+  io.outBTBPredictTarget := btbPredictTargetReg
   
 //RegNext means: "Create a register, feed this input into it, initialize it to this default value, and connect it to this output"
 //   io.outUOP         := RegNext(io.inUOP, 0.U)

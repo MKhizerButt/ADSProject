@@ -64,6 +64,11 @@ class ID extends Module {
     val pcSel = Output(Bool()) // Input for PC selection signal from EX stage (for branch/jump)
     val targetPC = Output(UInt(32.W)) // Output for target PC to IF stage for branch/jump
     val wr_en = Output(Bool()) //
+
+    val inBTBPredictTaken = Input(Bool()) // Input for predicted taken signal from IF stage for observation
+    val inBTBPredictTarget = Input(UInt(32.W)) // Input for predicted target address from IF stage for observation
+    val outBTBPredictTaken = Output(Bool()) // Output for predicted taken signal to EX stage for observation
+    val outBTBPredictTarget = Output(UInt(32.W)) // Output for predicted target address to EX stage for observation
   })
   
   val opcode = io.inst(6, 0) // Extract opcode from instruction
@@ -75,6 +80,10 @@ class ID extends Module {
   val immI = io.inst(31, 20).asSInt.pad(32).asUInt // Extract immediate for I-type instructions
   val immJ = Cat(io.inst(31), io.inst(19, 12), io.inst(20), io.inst(30, 21), 0.U(1.W)).asSInt.pad(32).asUInt // Extract immediate for JAL instruction, Bit 0 as it is a multiples of 2 bytes
   val immB = Cat(io.inst(31), io.inst(7), io.inst(30, 25), io.inst(11, 8), 0.U(1.W)).asSInt.pad(32).asUInt // Extract immediate for B-type instructions, Bit 0 as it is a multiples of 2 bytes
+
+  // Pass through BTB prediction signals for observation
+  io.outBTBPredictTaken := io.inBTBPredictTaken
+  io.outBTBPredictTarget := io.inBTBPredictTarget
   
   io.uop := NOP.asUInt // Default to NOP
   io.XcptInvalid := true.B // Default to invalid instruction, will be cleared for valid instructions

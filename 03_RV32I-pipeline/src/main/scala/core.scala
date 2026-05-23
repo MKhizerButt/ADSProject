@@ -83,6 +83,9 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
 
   val fUnit = Module(new ForwardingUnit())
 
+  val btb = Module(new BTB()) // Branch Target Buffer for branch prediction
+
+  // Connect IF stage to EX stage for branch/jump target and PC selection
   ifStage.io.target_pc := Mux(exStage.io.isBranch, idBarrier.io.outTargetPC, idStage.io.targetPC) // If branch else JAL/JALR
   ifStage.io.pcSel := (idStage.io.pcSel || exStage.io.isBranch)
 
@@ -169,4 +172,15 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   fUnit.io.idBarRegFileReq_B := idBarrier.io.outrs2
   fUnit.io.wbStageWrEn := wbStage.io.regFileReq.wr_en
   fUnit.io.exBarWrEn := exBarrier.io.outWrEn // Check if the instruction in EX stage is writing (coming out of EX Barrier)
+
+  // IF Stage gives the current PC to the BTB to get branch prediction information
+  btb.io.pc := ifStage.io.outPC
+
+  // Connect BTB outputs to IF stage for branch prediction
+  ifStage.io.btbValid := btb.io.valid
+  ifStage.io.btbTarget := btb.io.target
+  ifStage.io.btbPredictTaken := btb.io.predictedBranch
+
+  // Connect EX stage to BTB to update it with actual branch outcomes
+  
 }

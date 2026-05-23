@@ -46,7 +46,14 @@ class IF (BinaryFile: String) extends Module {
     val outPC = Output(UInt(32.W)) // Output for the current program counter 
 
     val target_pc = Input(UInt(32.W)) // Input for target PC from EX stage
-    val pcSel = Input(Bool()) // Input for PC selection signal from ID stage (for branch/jump)
+    val pcSel = Input(Bool()) // Input for PC selection signal for branch from EX Stage /for Jump from ID Stage
+
+    val btbValid = Input(Bool()) // Input for BTB valid signal from EX stage
+    val btbTarget = Input(UInt(32.W)) // Input for BTB predicted
+    val btbPredictTaken = Input(Bool()) // Input for BTB prediction signal from EX stage
+
+    val outBTBPredictTaken = Output(Bool()) // Output for the predicted taken signal to the IF Barrier (for observation)
+    val outBTBPredictTarget = Output(UInt(32.W)) // Output for the predicted target address to the IF Barrier (for observation)
   })
 
 //ToDo: Add your implementation according to the specification above here 
@@ -54,16 +61,23 @@ class IF (BinaryFile: String) extends Module {
 
   val iMem = Mem(4096, UInt(32.W)) // Instruction memory with 4096 entries initialized to 0
 
+  val takePrediction = io.btbPredictTaken && io.btbValid // Determine if we should take the BTB prediction
+
   loadMemoryFromFile(iMem, BinaryFile) // Load instruction memory from binary file at compile time
   
   io.instr := iMem(pc_reg >> 2) // Fetch instruction at current PC (word-aligned, so shift right by 2)
   io.outPC := pc_reg
+
+  io.outBTBPredictTaken := takePrediction // Output the predicted taken signal to the IF Barrier for observation
+  io.outBTBPredictTarget := io.btbTarget // Output the predicted target address to the IF Barrier for observation
 
   // Fetch instruction: extract bits 13 down to 2 to get a 12-bit word-aligned index
   //io.instr := iMem(pc_reg(13, 2))
 
   when(io.pcSel) { // If PC selection signal is set (for branch/jump), update PC with offset
     pc_reg := io.target_pc
+  } .elsewhen(takePrediction) { // If BTB predicts taken, update PC with predicted target
+    pc_reg := io.btbTarget
   } .otherwise { // Otherwise, increment PC to fetch next sequential instruction
     pc_reg := pc_reg + 4.U
   }

@@ -2,6 +2,7 @@ package core_tile
 
 import chisel3._
 import chisel3.util._
+import chisel3.experimental.ChiselEnum
 
 // FSM States for 2-bit saturating counter
 object BTBStates extends ChiselEnum {
@@ -9,17 +10,17 @@ object BTBStates extends ChiselEnum {
 }
 
 class BTB extends Module {
-    val io = IO(new Bundle {
-        val PC = Input(UInt(32.W))
-        val update = Input(Bool())
-        val updatePC = Input(UInt(32.W))
-        val updateTarget = Input(UInt(32.W))
-        val mispredicted = Input(Bool())
+  val io = IO(new Bundle {
+    val PC = Input(UInt(32.W))
+    val update = Input(Bool())
+    val updatePC = Input(UInt(32.W))
+    val updateTarget = Input(UInt(32.W))
+    val mispredicted = Input(Bool())
 
-        val valid = Output(Bool())
-        val target = Output(UInt(32.W))
-        val predictTaken = Output(Bool())
-    })
+    val valid = Output(Bool())
+    val target = Output(UInt(32.W))
+    val predictTaken = Output(Bool())
+  })
 
   import BTBStates._
   
@@ -60,6 +61,31 @@ class BTB extends Module {
     lruRegs(readIndex) := 1.U // Way 1 becomes LRU
   } .elsewhen(validWay1) {
     lruRegs(readIndex) := 0.U // Way 0 becomes LRU
+  }
+
+  // Update Logic
+  val updateIndex = io.updatePC(indexBits + 1, 2)
+  val updateTag   = io.updatePC(31, indexBits + 2)
+
+  // Check if the update is for an existing entry (hit) or a new entry (miss)
+  val updateWay0 = validRegs(updateIndex)(0) && (tagRegs(updateIndex)(0) === updateTag)
+  val updateWay1 = validRegs(updateIndex)(1) && (tagRegs(updateIndex)(1) === updateTag)
+
+  when(io.update) {
+    when(updateWay0) { // Update existing entry in Way 0
+      targetRegs(updateIndex)(0) := io.updateTarget
+      predictState(updateIndex)(0) := getNextState(predictState(updateIndex)(0), io.mispredicted)
+    } .elsewhen(updateWay1) { // Update existing entry in Way 1
+      targetRegs(updateIndex)(1) := io.updateTarget
+      predictState(updateIndex)(1) := getNextState(predictState(updateIndex)(1), io.mispredicted)
+    } .otherwise { // Miss: need to allocate a new
+      val wayToUpdate = lruRegs(updateIndex) // Choose the LRU way for replacement
+      
+      validRegs(updateIndex)(wayToUpdate) := true.B
+      tagRegs(updateIndex)(wayToUpdate) := updateTag
+      targetRegs(updateIndex)(wayToUpdate) := io.updateTarget
+      predictState(updateIndex)(wayToUpdate) := BTBStates.weakTaken // Initialize new entry to weakTaken state
+    }
   }
 
   def getNextState(currentState: BTBStates.Type, mispredict: Bool): BTBStates.Type = { // Input inside (), Output after :
