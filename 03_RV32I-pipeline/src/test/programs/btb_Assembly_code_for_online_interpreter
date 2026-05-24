@@ -1,0 +1,6 @@
+ADDI x1, x0, 0       # initialize counters # x1 = loop counter (i)
+ADDI x2, x0, 3      # x2 = loop limit (3)
+ADDI x1, x1, 1      # Loop Start (Target PC: 8) # i++ 
+NOP                 # (Padding to make waveform easier to read)
+BNE x1, x2, -8      # If i != 3, loop back to PC 8!
+ADDI x3, x0, 99     # Loop Exit # Success marker 
