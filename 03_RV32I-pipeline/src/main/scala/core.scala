@@ -85,9 +85,17 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
 
   val btb = Module(new BTB()) // Branch Target Buffer for branch prediction
 
-  // Connect IF stage to EX stage for branch/jump target and PC selection
-  ifStage.io.target_pc := Mux(exStage.io.isBranch, idBarrier.io.outTargetPC, idStage.io.targetPC) // If branch else JAL/JALR
-  ifStage.io.pcSel := (idStage.io.pcSel || exStage.io.isBranch)
+ // --- CONTROL REDIRECTION LOGIC ---
+
+  // Calculate the branch recovery target:
+  // If the branch was predicted taken (but mispredicted), it means reality was NOT taken -> go to PC + 4.
+  // Otherwise, reality was taken -> go to the calculated target address.
+  val recoveryPC = Mux(idBarrier.io.outBTBPredictTaken, idBarrier.io.outPC + 4.U, idBarrier.io.outTargetPC)
+  
+  ifStage.io.pcSel := (exStage.io.isBranch || idStage.io.pcSel)
+  ifStage.io.target_pc := Mux(exStage.io.isBranch,
+                              Mux(exStage.io.btbUpdate, recoveryPC, idBarrier.io.outTargetPC),
+                              idStage.io.targetPC)
 
   // Connect IF stage to IF Barrier
   ifBarrier.io.inInstr := ifStage.io.instr

@@ -66,7 +66,10 @@ class EX extends Module {
 
 val alu = Module(new ALU())
 
-val isBranchInst = 0.B // Default to not a branch, will be set for branch instructionss
+val isBranchInst = WireDefault(false.B) // Set for conditional branches only
+val isCondBranch = WireDefault(false.B) // Set to true for conditional branches (BEQ, BNE, BLT, BGE, BLTU, BGEU)
+val isUncondJump = WireDefault(false.B) // Set to true for unconditional jumps (JAL, JALR)
+val actualTaken = WireDefault(false.B) // Default to not taken, will be set for branch instructions if condition is met
 
 alu.io.operandA := io.operandA
 alu.io.operandB := io.operandB
@@ -74,7 +77,6 @@ alu.io.operandB := io.operandB
 io.outRD := io.rd 
 io.aluResult := alu.io.aluResult
 io.exception := io.xcptInvalid // Pass exception flag from ID stage to output
-io.isBranch := false.B // Default to not a branch/jump, will be set for branch instructions if condition is met
 
 alu.io.operation := ALUOp.ADD // Default operation to avoid latches
 
@@ -100,45 +102,62 @@ switch(uopc(io.uop(4, 0))) { // Use lower 5 bits of uop for instruction decoding
   is(uopc.SLTI) { alu.io.operation := ALUOp.SLT }
   is(uopc.SLTIU) { alu.io.operation := ALUOp.SLTU }
 
-  is(uopc.JAL) { alu.io.operation := ALUOp.ADD } // For JAL, ALU will be used to calculate return address (PC + 4), so we can use ADD operation
-  is(uopc.JALR) { alu.io.operation := ALUOp.ADD } // For JALR, ALU will be used to calculate target address (rs1 + imm), so we can use ADD operation
+  is(uopc.JAL) { 
+    alu.io.operation := ALUOp.ADD // For JAL, ALU will be used to calculate return address (PC + 4), so we can use ADD operation
+    actualTaken := true.B // JAL is an unconditional jump, always taken
+    isUncondJump := true.B
+  }
+  is(uopc.JALR) { 
+    alu.io.operation := ALUOp.ADD // For JALR, ALU will be used to calculate target address (rs1 + imm), so we can use ADD operation
+    actualTaken := true.B // JALR is an unconditional jump, always taken
+    isUncondJump := true.B
+  }
 
-  is{uopc.BEQ} { when (io.operandA === io.operandB) { isBranchInst := true.B } }
-  is{uopc.BNE} { when (io.operandA =/= io.operandB) { isBranchInst := true.B } }
-  is{uopc.BLT} { 
-    when (io.operandA.asSInt < io.operandB.asSInt) { isBranchInst := true.B } 
-  }
-  is{uopc.BGE} { 
-    when (io.operandA.asSInt >= io.operandB.asSInt) { isBranchInst := true.B } 
-  }
-  is{uopc.BLTU} { 
-    when (io.operandA < io.operandB) { isBranchInst := true.B } 
-  }
-  is{uopc.BGEU} { 
-    when (io.operandA >= io.operandB) { isBranchInst := true.B } 
-  }
-}
-
-  io.isBranch := isBranchInst
+  is(uopc.BEQ) { 
+      isCondBranch := true.B
+      isBranchInst := true.B 
+      actualTaken   := (io.operandA === io.operandB) 
+    }
+    is(uopc.BNE) { 
+      isCondBranch := true.B
+      isBranchInst := true.B 
+      actualTaken   := (io.operandA =/= io.operandB) 
+    }
+    is(uopc.BLT) { 
+      isCondBranch := true.B
+      isBranchInst := true.B 
+      actualTaken   := (io.operandA.asSInt < io.operandB.asSInt) 
+    }
+    is(uopc.BGE) { 
+      isCondBranch := true.B
+      isBranchInst := true.B 
+      actualTaken   := (io.operandA.asSInt >= io.operandB.asSInt) 
+    }
+    is(uopc.BLTU) { 
+      isCondBranch := true.B
+      isBranchInst := true.B 
+      actualTaken   := (io.operandA < io.operandB) 
+    }
+    is(uopc.BGEU) { 
+      isCondBranch := true.B
+      isBranchInst := true.B 
+      actualTaken   := (io.operandA >= io.operandB) 
+    }
+}  
   
-  // BTB Update Logic
-  // Determine if BTB should be updated (for conditional branches)
-  io.btbUpdate := isBranchInst // Update BTB when a conditional branch is taken
-
-  // BTB update PC is the current PC (PC of the branch instruction)
-  io.btbUpdatePC := io.inPC
-
-  // BTB update target is the target PC calculated by the branch/jump instruction
-  io.btbTarget := io.inTargetPC
-
   // Detect branch misprediction:
-  // A misprediction occurs if:
-  // 1. The predicted taken status doesn't match the actual taken status, OR
-  // 2. The branch was taken but the predicted target doesn't match the actual target
-  val actualTaken = isBranchInst
   val predictedTaken = io.inBTBPredictTaken
   val targetMismatch = (io.inTargetPC =/= io.inBTBPredictTarget) && actualTaken
+  val mispredicted   = isCondBranch && ((actualTaken =/= predictedTaken) || targetMismatch)
 
-  io.btbMispredicted := (actualTaken =/= predictedTaken) || targetMismatch
+  // CRITICAL FLUSH CONTROL SIGNAL:
+  // Redirect pipeline if it's an unconditional jump OR a mispredicted conditional branch!
+  io.isBranch := isUncondJump || mispredicted
+
+  // BTB Update Logic
+  io.btbUpdate := isCondBranch // Only update BTB for conditional branches
+  io.btbUpdatePC := io.inPC
+  io.btbTarget := io.inTargetPC
+  io.btbMispredicted := mispredicted
 }
 //ToDo: Add your implementation according to the specification above here 
