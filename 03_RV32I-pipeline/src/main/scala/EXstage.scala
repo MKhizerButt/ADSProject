@@ -152,7 +152,7 @@ switch(uopc(io.uop(4, 0))) { // Use lower 5 bits of uop for instruction decoding
 
   // CRITICAL FLUSH CONTROL SIGNAL:
   // Redirect pipeline if it's an unconditional jump OR a mispredicted conditional branch!
-  io.isBranch := isUncondJump || mispredicted
+  io.isBranch := mispredicted
 
   // BTB Update Logic
   io.btbUpdate := isCondBranch // Only update BTB for conditional branches
