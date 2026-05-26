@@ -45,11 +45,11 @@ class IF (BinaryFile: String) extends Module {
     val instr = Output(UInt(32.W)) // Output for the fetched instruction to the IF Barrier
     val outPC = Output(UInt(32.W)) // Output for the current program counter 
 
-    val target_pc = Input(UInt(32.W)) // Input for target PC from EX stage
+    val target_pc = Input(UInt(32.W)) // Input for target PC from EX stage (First time a branch is taken, then for jump instructions from ID stage)
     val pcSel = Input(Bool()) // Input for PC selection signal for branch from EX Stage /for Jump from ID Stage
 
     val btbValid = Input(Bool()) // Input for BTB valid signal from EX stage
-    val btbTarget = Input(UInt(32.W)) // Input for BTB predicted
+    val btbTarget = Input(UInt(32.W)) // Input for BTB predicted 
     val btbPredictTaken = Input(Bool()) // Input for BTB prediction signal from EX stage
 
     val outBTBPredictTaken = Output(Bool()) // Output for the predicted taken signal to the IF Barrier (for observation)

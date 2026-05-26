@@ -44,7 +44,7 @@ class IFBarrier extends Module {
   })
 
 //ToDo: Add your implementation according to the specification above here 
-  val instrReg = RegInit(0.U(32.W)) // Register to hold instruction between pipeline stages, initialized to 0
+  val instrReg = RegInit("h00000013".U(32.W)) // Register to hold instruction between pipeline stages, initialized to 0
   val pcReg = RegInit(0.U(32.W)) // Register to hold program counter between pipeline stages, initialized to 0
 
   // Pass through BTB prediction signals for observation

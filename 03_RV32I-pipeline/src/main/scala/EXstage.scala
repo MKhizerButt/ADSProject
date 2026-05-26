@@ -66,7 +66,6 @@ class EX extends Module {
 
 val alu = Module(new ALU())
 
-val isBranchInst = WireDefault(false.B) // Set for conditional branches only
 val isCondBranch = WireDefault(false.B) // Set to true for conditional branches (BEQ, BNE, BLT, BGE, BLTU, BGEU)
 val isUncondJump = WireDefault(false.B) // Set to true for unconditional jumps (JAL, JALR)
 val actualTaken = WireDefault(false.B) // Default to not taken, will be set for branch instructions if condition is met
@@ -115,40 +114,34 @@ switch(uopc(io.uop(4, 0))) { // Use lower 5 bits of uop for instruction decoding
 
   is(uopc.BEQ) { 
       isCondBranch := true.B
-      isBranchInst := true.B 
       actualTaken   := (io.operandA === io.operandB) 
     }
     is(uopc.BNE) { 
       isCondBranch := true.B
-      isBranchInst := true.B 
       actualTaken   := (io.operandA =/= io.operandB) 
     }
     is(uopc.BLT) { 
       isCondBranch := true.B
-      isBranchInst := true.B 
       actualTaken   := (io.operandA.asSInt < io.operandB.asSInt) 
     }
     is(uopc.BGE) { 
       isCondBranch := true.B
-      isBranchInst := true.B 
       actualTaken   := (io.operandA.asSInt >= io.operandB.asSInt) 
     }
     is(uopc.BLTU) { 
       isCondBranch := true.B
-      isBranchInst := true.B 
       actualTaken   := (io.operandA < io.operandB) 
     }
     is(uopc.BGEU) { 
       isCondBranch := true.B
-      isBranchInst := true.B 
       actualTaken   := (io.operandA >= io.operandB) 
     }
 }  
   
   // Detect branch misprediction:
   val predictedTaken = io.inBTBPredictTaken
-  val targetMismatch = (io.inTargetPC =/= io.inBTBPredictTarget) && actualTaken
-  val mispredicted   = isCondBranch && ((actualTaken =/= predictedTaken) || targetMismatch)
+  val targetMismatch = (io.inTargetPC =/= io.inBTBPredictTarget) && actualTaken // Target from ID stage doesn't match target from BTB when the branch is actually taken
+  val mispredicted   = isCondBranch && ((actualTaken =/= predictedTaken) || targetMismatch) // Initially predictedTaken is false in the BTB, so first time it will be a misprediction
 
   // CRITICAL FLUSH CONTROL SIGNAL:
   // Redirect pipeline if it's an unconditional jump OR a mispredicted conditional branch!

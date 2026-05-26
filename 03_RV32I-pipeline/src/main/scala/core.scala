@@ -92,15 +92,13 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   // Otherwise, reality was taken -> go to the calculated target address.
   val recoveryPC = Mux(idBarrier.io.outBTBPredictTaken, idBarrier.io.outPC + 4.U, idBarrier.io.outTargetPC)
   
-  ifStage.io.pcSel := (exStage.io.isBranch || idStage.io.pcSel)
-  ifStage.io.target_pc := Mux(exStage.io.isBranch,
-                              Mux(exStage.io.btbUpdate, recoveryPC, idBarrier.io.outTargetPC),
-                              idStage.io.targetPC)
-
+  ifStage.io.pcSel := (exStage.io.isBranch || idStage.io.pcSel) // idStage.pcSel for J-type (unconditional), exStage.isBranch for B-type conditional branches in case of misprediction
+  ifStage.io.target_pc := Mux(exStage.io.isBranch, recoveryPC, idStage.io.targetPC)
+  
   // Connect IF stage to IF Barrier
   ifBarrier.io.inInstr := ifStage.io.instr
   ifBarrier.io.inPC := ifStage.io.outPC
-  ifBarrier.io.flush := (idStage.io.pcSel || exStage.io.isBranch)
+  ifBarrier.io.flush     := (idStage.io.pcSel || exStage.io.isBranch)
   ifBarrier.io.inBTBPredictTaken := ifStage.io.outBTBPredictTaken
   ifBarrier.io.inBTBPredictTarget := ifStage.io.outBTBPredictTarget
 
